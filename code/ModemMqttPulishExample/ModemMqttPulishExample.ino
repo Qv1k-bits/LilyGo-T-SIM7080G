@@ -60,12 +60,6 @@ const char server[]   =
                 "kaf52e8a.ala.us-east-1.emqxsl.com";
 const int  port       = 8883;
 char buffer[1024] = {0};
-
-// To create a device : https://cayenne.mydevices.com/cayenne/dashboard
-//  1. Add new...
-//  2. Device/Widget
-//  3. Bring Your Own Thing
-//  4. Copy the <MQTT USERNAME> <MQTT PASSWORD> <CLIENT ID> field to the bottom for replacement
 char username[] = 
                 //"emqx";
                 "telia";
@@ -73,16 +67,6 @@ char password[] =
                 //"public";
                 "teliatest";
 char clientID[] = "SIM7080";
-
-// To create a widget
-//  1. Add new...
-//  2. Device/Widget
-//  3. Custom Widgets
-//  4. Value
-//  5. Fill in the name and select the newly created equipment
-//  6. Channel is filled as 0
-//  7.  Choose ICON
-//  8. Add Widget
 int data_channel = 0;
 
 

@@ -1,30 +1,24 @@
 /**
- * @file      ModemMqttsExample.ino
- * @author    Lewis He (lewishe@outlook.com)
- * @license   MIT
- * @copyright Copyright (c) 2022  Shenzhen Xin Yuan Electronic Technology Co.,
- * Ltd
- * @date      2022-09-16
+ * @file      main.ino
+ * @author    Kristian van Kints
+ * @license   
+ * @copyright Copyright (c)
+ * @date      2024-01-09
  *
  */
 #include <Arduino.h>
+#define TINY_GSM_MODEM_SIM7080
+#include <TinyGsmClient.h>
+#define TINY_GSM_RX_BUFFER 1024
 #define XPOWERS_CHIP_AXP2101
 #include "XPowersLib.h"
-#include "utilities.h"
-#include "./certs/EMQX_root_CA.h"
-
 XPowersPMU PMU;
+#include "utilities.h"
+#include "settings.h"
+#include "./certs/EMQX_root_CA.h"
 
 // See all AT commands, if wanted
 #define DUMP_AT_COMMANDS
-
-#define TINY_GSM_RX_BUFFER 1024
-
-#define TINY_GSM_MODEM_SIM7080
-#include <TinyGsmClient.h>
-#include "utilities.h"
-
-
 #ifdef DUMP_AT_COMMANDS
 #include <StreamDebugger.h>
 StreamDebugger debugger(Serial1, Serial);
@@ -33,55 +27,10 @@ TinyGsm        modem(debugger);
 TinyGsm modem(SerialAT);
 #endif
 
-const char *register_info[] = {
-    "Not registered, MT is not currently searching an operator to register "
-    "to.The GPRS service is disabled, the UE is allowed to attach for GPRS if "
-    "requested by the user.",
-    "Registered, home network.",
-    "Not registered, but MT is currently trying to attach or searching an "
-    "operator to register to. The GPRS service is enabled, but an allowable "
-    "PLMN is currently not available. The UE will start a GPRS attach as soon "
-    "as an allowable PLMN is available.",
-    "Registration denied, The GPRS service is disabled, the UE is not allowed "
-    "to attach for GPRS if it is requested by the user.",
-    "Unknown.",
-    "Registered, roaming.",
-};
-
-enum {
-    MODEM_CATM = 1,
-    MODEM_NB_IOT,
-    MODEM_CATM_NBIOT,
-};
-
 #define randMax 35
 #define randMin 18
 char buffer[1024] = {0};
-
-//!! Set the APN manually. Some operators need to set APN first when registering the network.
-//!! Set the APN manually. Some operators need to set APN first when registering the network.
-//!! Set the APN manually. Some operators need to set APN first when registering the network.
-// Using 7080G with Hologram.io , https://github.com/Xinyuan-LilyGO/LilyGo-T-SIM7080G/issues/19
-// const char *apn = "hologram";
-
-const char *apn = "lpwa.telia.iot";
-const char gprsUser[] = "";
-const char gprsPass[] = "";
-
-//  server address and port
-const char server[] = 
-                    //"broker.emqx.io";
-                    "kaf52e8a.ala.us-east-1.emqxsl.com";
-const int  port     = 8883;
-char username[]   = 
-                    //"emqx";
-                    "telia";
-char password[]   = 
-                    //"public";
-                    "teliatest";
-char clientID[]   = "SIM7080G";
-int  data_channel = 0;
-
+bool send_flag = true;
 
 bool isConnect()
 {
@@ -94,8 +43,7 @@ bool isConnect()
 }
 
 void writeCaFiles(int index, const char *filename, const char *data,
-                  size_t lenght)
-{
+                  size_t lenght){
     modem.sendAT("+CFSTERM");
     modem.waitResponse();
 
@@ -150,51 +98,8 @@ REWRITE:
         return;
     }
 }
-void setup()
-{
-    Serial.begin(115200);
 
-    // Start while waiting for Serial monitoring
-    while (!Serial)
-        ;
-
-    delay(3000);
-
-    Serial.println();
-
-    /*********************************
-     *  step 1 : Initialize power chip,
-     *  turn on modem and gps antenna power channel
-     ***********************************/
-    if (!PMU.begin(Wire, AXP2101_SLAVE_ADDRESS, I2C_SDA, I2C_SCL)) {
-        Serial.println("Failed to initialize power.....");
-        while (1) {
-            delay(5000);
-        }
-    }
-    // Set the working voltage of the modem, please do not modify the parameters
-    PMU.setDC3Voltage(3000);  // SIM7080 Modem main power channel 2700~ 3400V
-    PMU.enableDC3();
-
-    // Modem GPS Power channel
-    PMU.setBLDO2Voltage(3300);
-    PMU.enableBLDO2();  // The antenna power must be turned on to use the GPS
-    // function
-
-    // TS Pin detection must be disable, otherwise it cannot be charged
-    PMU.disableTSPinMeasure();
-
-
-    /*********************************
-     * step 2 : start modem
-     ***********************************/
-
-    Serial1.begin(115200, SERIAL_8N1, BOARD_MODEM_RXD_PIN, BOARD_MODEM_TXD_PIN);
-
-    pinMode(BOARD_MODEM_PWR_PIN, OUTPUT);
-    pinMode(BOARD_MODEM_DTR_PIN, OUTPUT);
-    pinMode(BOARD_MODEM_RI_PIN, INPUT);
-
+void test_modem(){
     int retry = 0;
     while (!modem.testAT(1000)) {
         Serial.print(".");
@@ -211,14 +116,17 @@ void setup()
         }
     }
     Serial.println();
-    Serial.print("Modem started!");
+    Serial.println("Modem started!");
+}
 
+void MQTT_connect(){
+    /*********************************
+    * step 2 : start modem
+    ***********************************/
+    test_modem();
     /*********************************
      * step 3 : Check if the SIM card is inserted
      ***********************************/
-    String result;
-
-
     if (modem.getSimStatus() != SIM_READY) {
         Serial.println("SIM Card is not insert!!!");
         return;
@@ -229,19 +137,13 @@ void setup()
     if (modem.waitResponse(20000UL) != 1) {
         Serial.println("Disable RF Failed!");
     }
-
     /*********************************
      * step 4 : Set the network mode to NB-IOT
      ***********************************/
-
     modem.setNetworkMode(3);  // use automatic
-
     modem.setPreferredMode(MODEM_CATM_NBIOT);
-
     uint8_t pre = modem.getPreferredMode();
-
     uint8_t mode = modem.getNetworkMode();
-
     Serial.printf("getNetworkMode:%u getPreferredMode:%u\n", mode, pre);
 
     //Set the APN manually. Some operators need to set APN first when registering the network.
@@ -256,7 +158,6 @@ void setup()
     if (modem.waitResponse(20000UL) != 1) {
         Serial.println("Enable RF Failed!");
     }
-
     /*********************************
      * step 5 : Wait for the network registration to succeed
      ***********************************/
@@ -314,16 +215,13 @@ void setup()
     // Before connecting, you need to confirm that the time has been synchronized.
     modem.sendAT("+CCLK?");
     modem.waitResponse(30000);
-
-
     /*********************************
      * step 6 : import  ca
      ***********************************/
-    writeCaFiles(3, "server-ca.crt", root_CA, strlen(root_CA));// CA catificate from EMQX
+    //writeCaFiles(3, "server-ca.crt", root_CA, strlen(root_CA));// CA catificate from EMQX
     /*********************************
      * step 7 : setup MQTT Client
      ***********************************/
-
     // If it is already connected, disconnect it first
     modem.sendAT("+SMDISC");
     if (modem.waitResponse() != 1) {}
@@ -386,34 +284,102 @@ void setup()
         Serial.println("Convert ca failed!");
     }
 
-
     modem.sendAT("+SMCONN");
     int8_t ret = modem.waitResponse(30000);
     if (ret != 1) {
         Serial.println("Connect failed, retry connect ...");
         delay(1000);
         return;
+    } else {
+        Serial.println("MQTT Client connected!");
     }
-
-
-    Serial.println("MQTT Client connected!");
 }
 
-void loop()
-{
-    if (!isConnect()) {
-        Serial.println("MQTT Client disconnect!"); delay(1000);
-        return ;
-    }
+void setup(){
+    Serial.begin(115200);
 
+    // Start while waiting for Serial monitoring
+    while (!Serial);
+    delay(3000);
     Serial.println();
-    // Publish fake temperature data
-    String payload = "temp,c=";
+
+    /*********************************
+     *  step 1 : Initialize power chip,
+     *  turn on modem and gps antenna power channel
+     ***********************************/
+    Serial.println("Step 1:");
+    if (!PMU.begin(Wire, AXP2101_SLAVE_ADDRESS, I2C_SDA, I2C_SCL)) {
+        Serial.println("Failed to initialize power.....");
+        while (1) {
+            delay(5000);
+        }
+    }
+    // Set the working voltage of the modem, please do not modify the parameters
+    PMU.setDC3Voltage(3000);  // SIM7080 Modem main power channel 2700~ 3400V
+    PMU.enableDC3();
+    // Modem GPS Power channel
+    PMU.setBLDO2Voltage(3300);
+    PMU.enableBLDO2();  // The antenna power must be turned on to use the GPS
+                        // function
+    // TS Pin detection must be disable, otherwise it cannot be charged
+    PMU.disableTSPinMeasure();
+
+    /*********************************
+     * step 2 : start modem
+     ***********************************/
+    Serial.println("Step 2:");
+    Serial1.begin(115200, SERIAL_8N1, BOARD_MODEM_RXD_PIN, BOARD_MODEM_TXD_PIN);
+
+    pinMode(BOARD_MODEM_PWR_PIN, OUTPUT);
+    pinMode(BOARD_MODEM_DTR_PIN, OUTPUT);
+    pinMode(BOARD_MODEM_RI_PIN, INPUT);
+
+    test_modem();
+
+    /*********************************
+     * step 4 : Set the network mode to NB-IOT
+     ***********************************/
+    Serial.println("Step 4:");
+    modem.setNetworkMode(2);  // use automatic
+    modem.setPreferredMode(MODEM_CATM_NBIOT);
+    uint8_t pre = modem.getPreferredMode();
+    uint8_t mode = modem.getNetworkMode();
+    Serial.printf("getNetworkMode:%u getPreferredMode:%u\n", mode, pre);
+
+    /*********************************
+     * step 6 : import  ca
+     ***********************************/
+    Serial.println("Step 6:");
+    writeCaFiles(3, "server-ca.crt", root_CA, strlen(root_CA));// CA catificate from EMQX
+}
+
+void loop(){
+    if (send_flag==true){
+        MQTT_connect();
+        send_flag = false;
+    }
+    Serial.println();
+    // Publish fake data
+    String payload = "";
+
+    payload.concat(clientID);
+    payload.concat(",");
+
+    payload.concat(modem.getGSMDateTime(DATE_FULL));
+    payload.concat(",");
+
+    int csq = modem.getSignalQuality();
+    Serial.print("Signal quality:");
+    Serial.println(csq);
+    payload.concat(csq);
+    payload.concat(",");
+    
     int temp =  rand() % (randMax - randMin) + randMin;
+    payload.concat("temp,");
     payload.concat(temp);
     payload.concat("\r\n");
 
-    // AT+SMPUB=<topic>,<content length>,<qos>,<retain><CR>message is enteredQuit edit mode if messagelength equals to <contentlength>
+    // AT+SMPUB=<topic>,<content length>,<qos>,<retain><CR>message is entered Quit edit mode if payload.length equals to <content length>
     snprintf(buffer, 1024, "+SMPUB=\"t/%s/%s\",%d,1,1", username, clientID, payload.length());
     modem.sendAT(buffer);
     if (modem.waitResponse(">") == 1) {
@@ -426,6 +392,24 @@ void loop()
         } else {
             Serial.println("Send Packet failed!");
         }
+    }
+
+    if (!isConnect()) {
+        Serial.println("MQTT Client disconnect!"); delay(1000);
+        //return;
+    }
+
+    // Disconnect MQTT connection
+    modem.sendAT("+SMDISC");
+    if (modem.waitResponse() != 1) {
+        Serial.println("Couden't disconnect");
+        //return;
+    }
+
+    // Disable RF
+    modem.sendAT("+CFUN=0");
+    if (modem.waitResponse(20000UL) != 1) {
+        Serial.println("Disable RF Failed!");
     }
 
     delay(180000);
