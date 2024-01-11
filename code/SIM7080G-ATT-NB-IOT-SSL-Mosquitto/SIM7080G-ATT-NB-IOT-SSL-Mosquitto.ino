@@ -498,8 +498,12 @@ void setup()
     if (modem.waitResponse() != 1) { return; }
 
     // configure the SSL/TLS version for a secure socket connection
-    modem.sendAT("+CSSLCFG=\"SSLVERSION\",0,5");
+    modem.sendAT("+CSSLCFG=\"SSLVERSION\",0,3");
     if (modem.waitResponse() != 1) { return; }
+
+    modem.sendAT("+CSSLCFG=\"SNI\",0,%s", MQTT_Server_URL);
+    if (modem.waitResponse() != 1) { return; }
+
     // convert the rootCA to the format required by the modem
     // <ssltype>
     //      1 QAPI_NET_SSL_CERTIFICATE_E
@@ -528,7 +532,7 @@ void setup()
     <cert name> CERT_NAME file name, Max length is 20 bytes
     <len_calist> Integer type. Maximum length of parameter <ca list>.
     <len_certname> Integer type. Maximum length of parameter <cert name>. */
-    modem.sendAT("+SMSSL=1,\"rootCA.pem\",\"deviceCert.crt\"");
+    modem.sendAT("+SMSSL=1,\"rootCA.pem\",");//\"deviceCert.crt\"");
     if (modem.waitResponse() != 1) {
         Serial.println("Convert ca failed!");
     }
