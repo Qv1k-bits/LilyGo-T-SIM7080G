@@ -10,7 +10,7 @@
 #pragma once
 
 // ===================
-// Select camera model
+// Select Connection
 // ===================
 // #define EMQX_public
 #define EMQX
@@ -21,9 +21,9 @@
 //!! Set the APN manually. Some operators need to set APN first when registering the network.
 // Using 7080G with Hologram.io , https://github.com/Xinyuan-LilyGO/LilyGo-T-SIM7080G/issues/19
 //#define apn         "hologram"
-#define apn             ("lpwa.telia.iot")
-#define gprsUser        ("")
-#define gprsPass        ("")
+const char apn[]      = "lpwa.telia.iot";
+const char gprsUser[] = "";
+const char gprsPass[] = "";
 //  server address and port
 #define server          ("kaf52e8a.ala.us-east-1.emqxsl.com")
 #define port            (8883)
@@ -38,9 +38,9 @@
 //!! Set the APN manually. Some operators need to set APN first when registering the network.
 // Using 7080G with Hologram.io , https://github.com/Xinyuan-LilyGO/LilyGo-T-SIM7080G/issues/19
 //#define apn         "hologram"
-#define apn             ("lpwa.telia.iot")
-#define gprsUser        ("")
-#define gprsPass        ("")
+const char apn[]      = "lpwa.telia.iot";
+const char gprsUser[] = "";
+const char gprsPass[] = "";
 //  server address and port
 #define server          ("broker.emqx.io")
 #define port            (8883)
@@ -53,7 +53,7 @@
 #error "Camera model not selected"
 #endif
 
-/*const char *register_info[] = {
+const char *register_info[] = {
     "Not registered, MT is not currently searching an operator to register "
     "to.The GPRS service is disabled, the UE is allowed to attach for GPRS if "
     "requested by the user.",
@@ -64,6 +64,15 @@
     "as an allowable PLMN is available.",
     "Registration denied, The GPRS service is disabled, the UE is not allowed "
     "to attach for GPRS if it is requested by the user.",
+    "Unknown.",
+    "Registered, roaming.",
+};
+
+/*const char *register_info[] = {
+    "Not registered, MT is not currently searching an operator to register to.The GPRS service is disabled, the UE is allowed to attach for GPRS if requested by the user.",
+    "Registered, home network.",
+    "Not registered, but MT is currently trying to attach or searching an operator to register to. The GPRS service is enabled, but an allowable PLMN is currently not available. The UE will start a GPRS attach as soon as an allowable PLMN is available.",
+    "Registration denied, The GPRS service is disabled, the UE is not allowed to attach for GPRS if it is requested by the user.",
     "Unknown.",
     "Registered, roaming.",
 };*/

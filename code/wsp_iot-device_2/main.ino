@@ -7,15 +7,13 @@
  *
  */
 #include <Arduino.h>
-//#include "camera.h"
 #include "power.h"
-//#include "network.h"
-//#include "server.h"
 #include "utilities.h"
-//#include "esp_camera.h"
 #include "sdcard.h"
 #include "modem.h"
-#include "settings.h"
+//#include "settings.h"
+
+#define setupDelay 10
 
 void loopPeripherals(void *ptr);
 void getWakeupReason();
@@ -30,36 +28,44 @@ void setup(){
 
     Serial.println();
     Serial.println("===============Start setup===============");
+    delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start Wake up reason");
     getWakeupReason();
+    delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Check PSRAM");
     if (!psramFound()) {
         Serial.println("ERROR:PSRAM not found !");
     }
+    delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start setup Power");
     setupPower();
+    delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start setup SDcard");
     setupSdcard();
+    delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start setup Modem");
     setupModem();
+    delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start setup modem mode");
     setupNBIoTNetwork(MODEM_NB_IOT);
+    delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Create loopPeripherals task");
     //xTaskCreate(loopPeripherals, "App/per", 4 * 1024, NULL, 8, NULL);
+    delay(setupDelay);
 
     Serial.println("===============Setup ran !===============");
 }
@@ -68,8 +74,7 @@ void loop(){
     delay(1000);
 }
 
-void getWakeupReason()
-{
+void getWakeupReason(){
     esp_sleep_wakeup_cause_t wakeup_reason;
 
     wakeup_reason = esp_sleep_get_wakeup_cause();

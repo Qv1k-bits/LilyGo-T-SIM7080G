@@ -14,24 +14,9 @@
 #define TINY_GSM_MODEM_SIM7080
 #include <TinyGsmClient.h>
 #include "utilities.h"
-
+#include "settings.h"
 
 #if defined(USING_MODEM)
-
-const char *register_info[] = {
-    "Not registered, MT is not currently searching an operator to register to.The GPRS service is disabled, the UE is allowed to attach for GPRS if requested by the user.",
-    "Registered, home network.",
-    "Not registered, but MT is currently trying to attach or searching an operator to register to. The GPRS service is enabled, but an allowable PLMN is currently not available. The UE will start a GPRS attach as soon as an allowable PLMN is available.",
-    "Registration denied, The GPRS service is disabled, the UE is not allowed to attach for GPRS if it is requested by the user.",
-    "Unknown.",
-    "Registered, roaming.",
-};
-
-// Your GPRS credentials, if any
-const char apn[]      = "YourAPN";
-const char gprsUser[] = "";
-const char gprsPass[] = "";
-
 #ifdef DUMP_AT_COMMANDS
 #include <StreamDebugger.h>
 StreamDebugger debugger(Serial1, Serial);
@@ -50,7 +35,7 @@ void setupNBIoTNetwork(int MODEM_NB_IOT);
 
 void setupModem(){
     Serial.println("Initializing modem...");
-
+    
     Serial1.begin(115200, SERIAL_8N1, BOARD_MODEM_RXD_PIN, BOARD_MODEM_TXD_PIN);
 
     pinMode(BOARD_MODEM_PWR_PIN, OUTPUT);
@@ -104,7 +89,7 @@ void setupModem(){
 }
 
 void loactionTask(void *){
-    Serial.println("Get loaction");
+    Serial.println("Get location");
     while (1) {
         if (getLoaction()) {
             Serial.println();

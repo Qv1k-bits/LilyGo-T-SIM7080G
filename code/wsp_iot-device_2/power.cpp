@@ -14,8 +14,7 @@
 XPowersPMU PMU;
 
 
-bool setupPower()
-{
+bool setupPower(){
     if (!PMU.begin(Wire, AXP2101_SLAVE_ADDRESS, I2C_SDA, I2C_SCL)) {
         Serial.println("ERROR: Init PMU failed!");
         return false;
@@ -140,7 +139,6 @@ bool setupPower()
     return true;
 }
 
-void loopPower()
-{
+void loopPower(){
     //todo:
 }
