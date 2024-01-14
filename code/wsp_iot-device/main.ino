@@ -33,8 +33,7 @@ char buffer[1024] = {0};
 bool level = false;
 bool send_flag = true;
 
-bool isConnect()
-{
+bool isConnect(){
     modem.sendAT("+SMSTATE?");
     if (modem.waitResponse("+SMSTATE: ")) {
         String res = modem.stream.readStringUntil('\r');
@@ -44,8 +43,7 @@ bool isConnect()
 }
 
 // retrieve the Power Saving Mode (PSM) timer value from the modem
-void getPsmTimer()
-{
+void getPsmTimer(){
     modem.sendAT("+CPSMS?"); // Send AT command to query PSM settings
 
     if (modem.waitResponse("+CPSMS:") != 1)
