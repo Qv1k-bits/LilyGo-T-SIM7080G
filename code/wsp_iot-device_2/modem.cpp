@@ -15,6 +15,7 @@
 #include <TinyGsmClient.h>
 #include "utilities.h"
 #include "settings.h"
+#include "./certs/EMQX_root_CA.h"
 
 #if defined(USING_MODEM)
 #ifdef DUMP_AT_COMMANDS
@@ -25,13 +26,22 @@ TinyGsm        modem(debugger);
 TinyGsm        modem(Serial1);
 #endif
 
+String response;
+int8_t ret;
+
 bool getLoaction();
 void loactionTask(void *);
 bool isConnect();
 void getPsmTimer();
 void writeCaFiles(int index, const char *filename, const char *data, size_t lenght);
 void testModem();
-void setupNBIoTNetwork(int MODEM_NB_IOT);
+void setupNBIoTNetwork();
+void networkRegistration();
+void checkNetworkBearer();
+void showModemInfo();
+void writeCerts();
+void setup_TLS_SSL();
+void mqttConnect();
 
 void setupModem(){
     Serial.println("Initializing modem...");
@@ -55,37 +65,13 @@ void setupModem(){
         return ;
     }
 
-    RegStatus s;
-    do {
-        s = modem.getRegistrationStatus();
-        int16_t sq = modem.getSignalQuality();
-
-        if ( s == REG_SEARCHING) {
-            Serial.print("Searching...");
-        } else {
-            Serial.print("Other code:");
-            Serial.print(s);
-            break;
-        }
-        Serial.print("  Signal:");
-        Serial.println(sq);
-        delay(1000);
-    } while (s != REG_OK_HOME && s != REG_OK_ROAMING);
-
-    Serial.println();
-    Serial.print("Network register info:");
-    if (s >= sizeof(register_info) / sizeof(*register_info)) {
-        Serial.print("Other result = ");
-        Serial.println(s);
-    } else {
-        Serial.println(register_info[s]);
-    }
+    networkRegistration();
 
     if (modem.enableGPS() == false) {
         Serial.println("Enable gps failed!");
     }
 
-    xTaskCreate(loactionTask, "gps", 4096, NULL, 10, NULL);
+    //xTaskCreate(loactionTask, "gps", 4096, NULL, 10, NULL);
 }
 
 void loactionTask(void *){
@@ -238,7 +224,7 @@ void testModem(){
     }
 }
 
-void setupNBIoTNetwork(int MODEM_NB_IOT){
+void setupNBIoTNetwork(){
     Serial.println("Start to set the network mode to NB-IOT ");
     modem.setNetworkMode(2);  // use automatic
     modem.setPreferredMode(MODEM_NB_IOT);
@@ -247,9 +233,261 @@ void setupNBIoTNetwork(int MODEM_NB_IOT){
     Serial.printf("getNetworkMode:%u getPreferredMode:%u\n", mode, pre);
 }
 
+void networkRegistration(){
+    Serial.println("Configuring APN...");
+    modem.sendAT("+CGDCONT=1,\"IP\",\"", apn, "\"");
+    modem.waitResponse();
+
+    RegStatus s;
+    do {
+        s = modem.getRegistrationStatus();
+        int16_t sq = modem.getSignalQuality();
+
+        if ( s == REG_SEARCHING) {
+            Serial.print("Searching...");
+        } else {
+            Serial.print("Other code:");
+            Serial.print(s);
+            break;
+        }
+        Serial.print("  Signal:");
+        Serial.println(sq);
+        delay(1000);
+    } while (s != REG_OK_HOME && s != REG_OK_ROAMING);
+
+    Serial.println();
+    Serial.print("Network register info:");
+    if (s >= sizeof(register_info) / sizeof(*register_info)) {
+        Serial.print("Other result = ");
+        Serial.println(s);
+    } else {
+        Serial.println(register_info[s]);
+    }
+}
+
+void checkNetworkBearer(){
+    // Check the status of the network bearer
+    Serial.println("Checking the status of network bearer ...");
+    modem.sendAT("+CNACT?"); // Send the AT command to query the network bearer status
+    ret = modem.waitResponse(10000UL, response); // Wait for the response with a 10-second timeout
+
+    bool alreadyActivated = false;
+    if (response.indexOf("+CNACT: 0,1") >= 0) // Check if the response contains "+CNACT: 0,1" indicating bearer is activated
+    {
+        Serial.println("Network bearer is already activated");
+        alreadyActivated = true;
+    }
+    else if (response.indexOf("+CNACT: 0,0") >= 0) // Check if the response contains "+CNACT: 0,0" indicating bearer is deactivated
+    {
+        Serial.println("Network bearer is not activated");
+    }
+
+    if (!alreadyActivated)
+    {
+        // Activating network bearer
+        Serial.println("Activating network bearer ...");
+        modem.sendAT("+CNACT=0,1"); // Send the AT command to activate the network bearer
+        response = "";
+        ret = modem.waitResponse(10000UL, response); // Wait for the response with a 10-second timeout
+
+        if (response.indexOf("ERROR") >= 0) // Check if the response contains "ERROR"
+        {
+            Serial.println("Network bearer activation failed");
+        }
+        else if (response.indexOf("OK") >= 0) // Check if the response contains "OK"
+        {
+            Serial.println("Activation in progress, waiting for network response...");
+
+            // Wait for the "+APP PDP: 0,ACTIVE" response
+            bool activationConfirmed = false;
+            unsigned long startTime = millis();
+            while (millis() - startTime < 60000UL) // Wait for 60 seconds
+            {
+                if (modem.stream.available())
+                {
+                    response = modem.stream.readString();
+                    if (response.indexOf("+APP PDP: 0,ACTIVE") >= 0)
+                    {
+                        activationConfirmed = true;
+                        break;
+                    }
+                }
+                delay(100);
+            }
+            if (activationConfirmed)
+            {
+                Serial.println("Network bearer is activated successfully !");
+            }
+            else
+            {
+                Serial.println("No network response within the timeout");
+            }
+        }
+        else
+        {
+            Serial.println("No valid response");
+        }
+    }
+    // Ping the Google DNS server
+    modem.sendAT("+SNPING4=\"8.8.8.8\",1,16,5000");
+    if (modem.waitResponse(10000L) != 1)
+    {
+        Serial.println("Ping Failed!");
+        return;
+    }
+    else
+    {
+        Serial.println(response);
+    }
+}
+
+void showModemInfo(){
+    Serial.println("T-SIM7080G Firmware Version: ");
+    modem.sendAT("+CGMR");
+    if (modem.waitResponse(10000L) != 1)
+    {
+        Serial.println("Get Firmware Version Failed!");
+    }
+    else
+    {
+        Serial.println(response);
+    }
+    String ccid = modem.getSimCCID();
+    Serial.print("CCID:");
+    Serial.println(ccid);
+
+    String imei = modem.getIMEI();
+    Serial.print("IMEI:");
+    Serial.println(imei);
+
+    String imsi = modem.getIMSI();
+    Serial.print("IMSI:");
+    Serial.println(imsi);
+
+    String cop = modem.getOperator();
+    Serial.print("Operator:");
+    Serial.println(cop);
+
+    IPAddress local = modem.localIP();
+    Serial.print("Local IP:");
+    Serial.println(local);
+
+    int csq = modem.getSignalQuality();
+    Serial.print("Signal quality:");
+    Serial.println(csq);
+
+    modem.sendAT("+CGNAPN");
+    if (modem.waitResponse(10000L) != 1)
+    {
+        Serial.println("Get APN Failed!");
+        return;
+    }
+
+    modem.sendAT("+CCLK?");
+    if (modem.waitResponse(10000L) != 1)
+    {
+        Serial.println("Get time Failed!");
+        return;
+    }
+}
+
+void writeCerts(){
+    writeCaFiles(3, "rootCA.pem", root_CA, strlen(root_CA));                 // root_CA is retrieved from Mosquitto_root_CA.h, which is downloaded from https://test.mosquitto.org/ssl/mosquitto.org.crt
+    //writeCaFiles(3, "deviceCert.crt", Client_CRT, strlen(Client_CRT));       // Client_CRT is retrieved from Mosquitto_Client_CRT.h, please follow the guide to generate the device certificate in https://test.mosquitto.org/ssl/
+    //writeCaFiles(3, "devicePrivateKey.pem", Client_PSK, strlen(Client_PSK)); // Client_PSK is retrieved from Mosquitto_Client_PSK.h, please follow the guide to generate the device certificate and private key in https://test.mosquitto.org/ssl/
+}
+
+void setup_TLS_SSL(){
+    // If it is already connected, disconnect it first
+    modem.sendAT("+SMDISC");
+    if (modem.waitResponse() != 1) {}
+
+    modem.sendAT("+SMCONF=\"URL\",", server, ",", port);
+    if (modem.waitResponse() != 1) { return; }
+
+    modem.sendAT("+SMCONF=\"KEEPTIME\",60");
+    if (modem.waitResponse() != 1) {}
+
+    modem.sendAT("+SMCONF=\"CLEANSS\",1");
+    if (modem.waitResponse() != 1) {}
+
+    modem.sendAT("+SMCONF=\"CLIENTID\",", clientID);
+    if (modem.waitResponse() != 1) { return; }
+
+    modem.sendAT("+SMCONF=\"USERNAME\",\"", username, "\"");
+    if (modem.waitResponse() != 1) { return; }
+
+    modem.sendAT("+SMCONF=\"PASSWORD\",\"", password, "\"");
+    if (modem.waitResponse() != 1) { return; }
+
+    // AT+CSSLCFG="SSLVERSION",<ctxindex>,<sslversion>
+    modem.sendAT("+CSSLCFG=\"SSLVERSION\",0,3");
+    if (modem.waitResponse() != 1) { return; }
+
+    modem.sendAT("+CSSLCFG=\"SNI\",0,", server);
+    if (modem.waitResponse() != 1) { return; }
+
+    // <ssltype>
+    //      1 QAPI_NET_SSL_CERTIFICATE_E
+    //      2 QAPI_NET_SSL_CA_LIST_E
+    //      3 QAPI_NET_SSL_PSK_TABLE_E
+    // AT+CSSLCFG="CONVERT",2,"rootCA.pem"
+    modem.sendAT("+CSSLCFG=\"CONVERT\",2,\"rootCA.pem\"");
+    if (modem.waitResponse() != 1) {
+        Serial.println("Convert rootCA.pem failed!");
+        //return;
+    }
+
+    // AT+SMSTATE?
+    // modem.sendAT("+CSSLCFG=\"CONVERT\",1,\"server.crt\",\"key.pem\"");
+    // if (modem.waitResponse() != 1) {
+    //     Serial.println("Convert server.crt failed!");
+    // }
+
+    /*
+    Defined Values
+    <index> SSL status, range: 0-6
+            0 Not support SSL
+            1-6 Corresponding to AT+CSSLCFG command parameter <ctindex>
+            range 0-5
+    <ca list> CA_LIST file name, Max length is 20 bytes
+    <cert name> CERT_NAME file name, Max length is 20 bytes
+    <len_calist> Integer type. Maximum length of parameter <ca list>.
+    <len_certname> Integer type. Maximum length of parameter <cert name>.
+    */
+    modem.sendAT("+SMSSL=1,\"rootCA.pem\",\"\"");
+    if (modem.waitResponse() != 1) {
+        Serial.println("Convert ca failed!");
+    }
+}
+
+void mqttConnect(){
+    Serial.println("Connecting to MQTT server ...");
+    while (true)
+    {
+        modem.sendAT("+SMCONN");
+        ret = modem.waitResponse(60000UL, response);
+
+        if (response.indexOf("ERROR") >= 0) // Check if the response contains "ERROR"
+        {
+            Serial.println("Connect failed");
+            break; // Stop attempting to connect
+        }
+        else if (response.indexOf("OK") >= 0) // Check if the response contains "OK"
+        {
+            Serial.println("Connect successfully");
+            break; // Exit the loop
+        }
+        else
+        {
+            Serial.println("No valid response, retrying connect ...");
+            delay(1000);
+        }
+    }
+}
+
 #else
 void setupModem(){
-
 }
 #endif
 

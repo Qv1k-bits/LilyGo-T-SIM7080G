@@ -408,7 +408,6 @@ void setup(){
     // Otherwise ATT will assign a general APN like "m2mglobal" which seems blocks 443,8883,8884 ports.
     Serial.println("Configuring APN...");
     modem.sendAT("+CGDCONT=1,\"IP\",\"lpwa.telia.iot\"");
-    //modem.sendAT("+CGDCONT=1,\"IP\",\"iot.1nce.net\"");
     modem.waitResponse();
 
     RegStatus s;

@@ -43,23 +43,48 @@ void setup(){
     delay(setupDelay);
 
     Serial.println("=========================================");
-    Serial.println("Start setup Power");
+    Serial.println("Start Power setup");
     setupPower();
     delay(setupDelay);
 
     Serial.println("=========================================");
-    Serial.println("Start setup SDcard");
+    Serial.println("Start SDcard setup");
     setupSdcard();
     delay(setupDelay);
 
     Serial.println("=========================================");
-    Serial.println("Start setup Modem");
+    Serial.println("Start Modem setup");
     setupModem();
     delay(setupDelay);
 
     Serial.println("=========================================");
-    Serial.println("Start setup modem mode");
-    setupNBIoTNetwork(MODEM_NB_IOT);
+    Serial.println("Start modem mode setup");
+    setupNBIoTNetwork();
+    delay(setupDelay);
+
+    Serial.println("=========================================");
+    Serial.println("Checking the status of network bearer ...");
+    void checkNetworkBearer();
+    delay(setupDelay);
+
+    Serial.println("=========================================");
+    Serial.println("Show modem information");
+    showModemInfo();
+    delay(setupDelay);
+
+    Serial.println("=========================================");
+    Serial.println("Start writing certificates");
+    writeCerts();
+    delay(setupDelay);
+
+    Serial.println("=========================================");
+    Serial.println("Start TLS/SSL parameter setup");
+    setup_TLS_SSL();
+    delay(setupDelay);
+
+    Serial.println("=========================================");
+    //Serial.println("Connecting MQTT");
+    mqttConnect();
     delay(setupDelay);
 
     Serial.println("=========================================");
@@ -71,7 +96,8 @@ void setup(){
 }
 
 void loop(){
-    delay(1000);
+    mqttConnect();
+    delay(3000);
 }
 
 void getWakeupReason(){

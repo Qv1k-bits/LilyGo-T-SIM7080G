@@ -9,10 +9,13 @@
 
 #pragma once
 
+// See all AT commands, if wanted
+//#define DUMP_AT_COMMANDS
+
 // ===================
 // Select Connection
 // ===================
-// #define EMQX_public
+//#define EMQX_public
 #define EMQX
 
 #if defined(EMQX)
