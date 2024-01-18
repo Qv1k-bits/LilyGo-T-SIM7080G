@@ -28,11 +28,13 @@ void setup(){
 
     Serial.println();
     Serial.println("===============Start setup===============");
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start Wake up reason");
     getWakeupReason();
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
@@ -40,56 +42,67 @@ void setup(){
     if (!psramFound()) {
         Serial.println("ERROR:PSRAM not found !");
     }
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start Power setup");
     setupPower();
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start SDcard setup");
     setupSdcard();
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start Modem setup");
     setupModem();
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start modem mode setup");
     setupNBIoTNetwork();
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Checking the status of network bearer ...");
     void checkNetworkBearer();
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Show modem information");
     showModemInfo();
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start writing certificates");
     writeCerts();
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Start TLS/SSL parameter setup");
     setup_TLS_SSL();
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     //Serial.println("Connecting MQTT");
     mqttConnect();
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("=========================================");
     Serial.println("Create loopPeripherals task");
-    //xTaskCreate(loopPeripherals, "App/per", 4 * 1024, NULL, 8, NULL);
+    xTaskCreate(loopPeripherals, "App/per", 4 * 1024, NULL, 8, NULL);
+    Serial.println();
     delay(setupDelay);
 
     Serial.println("===============Setup ran !===============");
@@ -168,6 +181,7 @@ void getWakeupReason(){
 void loopPeripherals(void *ptr){
     while (1){
         loopPower();
+        loopModem();
         delay(8);
     }
 }

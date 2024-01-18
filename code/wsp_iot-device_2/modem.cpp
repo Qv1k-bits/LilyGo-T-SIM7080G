@@ -6,8 +6,6 @@
  * @date      2022-09-21
  *
  */
-// See all AT commands, if wanted
-// #define DUMP_AT_COMMANDS
 
 #define TINY_GSM_RX_BUFFER 1024
 
@@ -51,11 +49,11 @@ void setupModem(){
 
     pinMode(BOARD_MODEM_PWR_PIN, OUTPUT);
 
-    // digitalWrite(BOARD_MODEM_PWR_PIN, LOW);
-    // delay(100);
-    // digitalWrite(BOARD_MODEM_PWR_PIN, HIGH);
-    // delay(1000);
-    // digitalWrite(BOARD_MODEM_PWR_PIN, LOW);
+    digitalWrite(BOARD_MODEM_PWR_PIN, LOW);
+    delay(100);
+    digitalWrite(BOARD_MODEM_PWR_PIN, HIGH);
+    delay(1000);
+    digitalWrite(BOARD_MODEM_PWR_PIN, LOW);
 
     testModem();
 
@@ -464,8 +462,11 @@ void setup_TLS_SSL(){
 
 void mqttConnect(){
     Serial.println("Connecting to MQTT server ...");
-    while (true)
-    {
+    while (true){
+        // Before connecting, you need to confirm that the time has been synchronized.
+        modem.sendAT("+CCLK?");
+        modem.waitResponse(30000);
+
         modem.sendAT("+SMCONN");
         ret = modem.waitResponse(60000UL, response);
 
@@ -487,22 +488,15 @@ void mqttConnect(){
     }
 }
 
+void loopModem(){
+    //todo:
+    modem.sendAT("+CPSI?");
+    //if (modem.waitResponse("+SMSTATE: ")) {}
+    modem.waitResponse();
+    sleep(60);
+}
+
 #else
 void setupModem(){
 }
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

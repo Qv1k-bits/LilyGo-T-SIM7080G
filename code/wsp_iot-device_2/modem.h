@@ -23,3 +23,5 @@ void showModemInfo();
 void writeCerts();
 void setup_TLS_SSL();
 void mqttConnect();
+
+void loopModem();

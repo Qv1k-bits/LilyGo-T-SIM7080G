@@ -10,7 +10,7 @@
 #pragma once
 
 // See all AT commands, if wanted
-//#define DUMP_AT_COMMANDS
+#define DUMP_AT_COMMANDS
 
 // ===================
 // Select Connection
