@@ -96,7 +96,7 @@ void setup(){
 }
 
 void loop(){
-    mqttConnect();
+    //mqttConnect();
     delay(3000);
 }
 

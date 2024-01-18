@@ -18,6 +18,7 @@
 #include "./certs/EMQX_root_CA.h"
 
 #if defined(USING_MODEM)
+
 #ifdef DUMP_AT_COMMANDS
 #include <StreamDebugger.h>
 StreamDebugger debugger(Serial1, Serial);
@@ -58,7 +59,7 @@ void setupModem(){
 
     testModem();
 
-    Serial.print("Modem started!");
+    Serial.println("Modem started!");
 
     if (modem.getSimStatus() != SIM_READY) {
         Serial.println("SIM Card is not insert!!!");
