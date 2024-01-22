@@ -41,6 +41,7 @@ void showModemInfo();
 void writeCerts();
 void setup_TLS_SSL();
 void mqttConnect();
+void publishMsg();
 
 void setupModem(){
     Serial.println("Initializing modem...");
@@ -51,11 +52,11 @@ void setupModem(){
     pinMode(BOARD_MODEM_DTR_PIN, OUTPUT);
     pinMode(BOARD_MODEM_RI_PIN, INPUT);
 
-    digitalWrite(BOARD_MODEM_PWR_PIN, LOW);
+    /*digitalWrite(BOARD_MODEM_PWR_PIN, LOW);
     delay(100);
     digitalWrite(BOARD_MODEM_PWR_PIN, HIGH);
     delay(1000);
-    digitalWrite(BOARD_MODEM_PWR_PIN, LOW);
+    digitalWrite(BOARD_MODEM_PWR_PIN, LOW);*/
 
     testModem();
     Serial.println("Modem started!");
@@ -70,6 +71,8 @@ void setupModem(){
     setupNBIoTNetwork();
 
     networkRegistration();
+
+    checkNetworkBearer();
 
     /*if (modem.enableGPS() == false) {
         Serial.println("Enable gps failed!");
@@ -239,7 +242,7 @@ void setupNBIoTNetwork(){
 
 void networkRegistration(){
     Serial.println("Configuring APN...");
-    modem.sendAT("+CGDCONT=1,\"IP\",\"", apn, "\"");
+    modem.sendAT("+CGDCONT=1,\"IP\",\"%s\"", apn);
     modem.waitResponse();
 
     RegStatus s;
@@ -334,13 +337,10 @@ void checkNetworkBearer(){
     }
     // Ping the Google DNS server
     modem.sendAT("+SNPING4=\"8.8.8.8\",1,16,5000");
-    if (modem.waitResponse(10000L) != 1)
-    {
+    if (modem.waitResponse(10000L) != 1){
         Serial.println("Ping Failed!");
         return;
-    }
-    else
-    {
+    }else{
         Serial.println(response);
     }
 }
@@ -469,11 +469,11 @@ void mqttConnect(){
     Serial.println("Connecting to MQTT server ...");
     while (true){
         // Before connecting, you need to confirm that the time has been synchronized.
-        modem.sendAT("+CCLK?");
-        modem.waitResponse(30000);
+        //modem.sendAT("+CCLK?");
+        //modem.waitResponse(30000);
 
         modem.sendAT("+SMCONN");
-        ret = modem.waitResponse(60000UL, response);
+        ret = modem.waitResponse(10000UL, response);
 
         if (response.indexOf("ERROR") >= 0) // Check if the response contains "ERROR"
         {
@@ -493,12 +493,71 @@ void mqttConnect(){
     }
 }
 
+void publishMsg(){
+    testModem();
+
+    // Enable RF
+    modem.sendAT("+CFUN=1");
+    if (modem.waitResponse(20000UL) != 1) {
+        Serial.println("Enable RF Failed!");
+    }else{
+        Serial.println("RF enabled");
+    }
+
+    setupNBIoTNetwork();
+    networkRegistration();
+    checkNetworkBearer();
+    setup_TLS_SSL();
+    mqttConnect();
+
+    // Publish fake data
+    String payload = "";
+    const int randMax = 35;
+    const int randMin = 18;
+    char buffer[1024] = {0};
+
+    payload.concat(clientID);
+    payload.concat(",");
+
+    payload.concat(modem.getGSMDateTime(DATE_FULL));
+    payload.concat(",");
+
+    int csq = modem.getSignalQuality();
+    Serial.print("Signal quality:");
+    Serial.println(csq);
+    payload.concat(csq);
+    payload.concat(",");
+
+    int temp =  rand() % (randMax - randMin) + randMin;
+    payload.concat("temp,");
+    payload.concat(temp);
+    payload.concat("\r\n");
+
+    // AT+SMPUB=<topic>,<content length>,<qos>,<retain><CR>message is entered Quit edit mode if payload.length equals to <content length>
+    snprintf(buffer, 1024, "+SMPUB=\"t/%s/%s\",%d,1,1", username, clientID, payload.length());
+    modem.sendAT(buffer);
+    ret = modem.waitResponse(60000UL, response);
+    if (response.indexOf("ERROR") >= 0) // Check if the response contains "ERROR"
+    {
+        Serial.println("Send Packet failed!");
+    }
+    else if (response.indexOf("OK") >= 0) // Check if the response contains "OK"
+    {
+        Serial.println("Send Packet success!");
+    }
+    else
+    {
+        Serial.println("No valid response, retrying connect ...");
+        delay(1000);
+    }
+}
+
 void loopModem(){
     //todo:
-    modem.sendAT("+CPSI?");
+    /*modem.sendAT("+CPSI?");
     //if (modem.waitResponse("+SMSTATE: ")) {}
     modem.waitResponse();
-    sleep(60000);
+    sleep(60000);*/
 }
 
 #else

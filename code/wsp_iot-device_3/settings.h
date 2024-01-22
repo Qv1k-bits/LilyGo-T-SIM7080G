@@ -24,16 +24,16 @@
 //!! Set the APN manually. Some operators need to set APN first when registering the network.
 // Using 7080G with Hologram.io , https://github.com/Xinyuan-LilyGO/LilyGo-T-SIM7080G/issues/19
 //#define apn         "hologram"
-const char apn[]      = "lpwa.telia.iot";
-const char gprsUser[] = "";
-const char gprsPass[] = "";
+const char apn[]            = "lpwa.telia.iot";
+const char gprsUser[]       = "";
+const char gprsPass[]       = "";
 //  server address and port
-#define server          ("kaf52e8a.ala.us-east-1.emqxsl.com")
-#define port            (8883)
-#define username        ("telia")
-#define password        ("teliatest")
-#define clientID        ("SIM7080G")
-#define data_channel    (0)
+const char server[]         = "kaf52e8a.ala.us-east-1.emqxsl.com";
+const char port[]           = "8883";
+const char username[]       = "telia";
+const char password[]       = "teliatest";
+const char clientID[]       = "SIM7080G";
+const char data_channel[]   = "0";
 
 #elif defined(EMQX_public)
 //!! Set the APN manually. Some operators need to set APN first when registering the network.
@@ -41,9 +41,9 @@ const char gprsPass[] = "";
 //!! Set the APN manually. Some operators need to set APN first when registering the network.
 // Using 7080G with Hologram.io , https://github.com/Xinyuan-LilyGO/LilyGo-T-SIM7080G/issues/19
 //#define apn         "hologram"
-const char apn[]      = "lpwa.telia.iot";
-const char gprsUser[] = "";
-const char gprsPass[] = "";
+const char apn[]            = "lpwa.telia.iot";
+const char gprsUser[]       = "";
+const char gprsPass[]       = "";
 //  server address and port
 #define server          ("broker.emqx.io")
 #define port            (8883)
