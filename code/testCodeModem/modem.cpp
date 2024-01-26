@@ -25,6 +25,7 @@ TinyGsm        modem(debugger);
 TinyGsm        modem(Serial1);
 #endif
 
+String response;
 int8_t ret;
 
 bool getLoaction();
@@ -41,6 +42,7 @@ void writeCerts();
 void setup_TLS_SSL();
 void mqttConnect();
 void publishMsg();
+void sendCmd(String cmd);
 
 void setupModem(){
     Serial.println("Initializing modem...");
@@ -241,7 +243,7 @@ void setupNBIoTNetwork(){
 
 void networkRegistration(){
     Serial.println("Configuring APN...");
-    modem.sendAT("+CGDCONT=1,\"IP\",\"", apn, "\"");
+    modem.sendAT("+CGDCONT=1,\"IP\",\"%s\"", apn);
     modem.waitResponse();
 
     RegStatus s;
@@ -275,7 +277,6 @@ void checkNetworkBearer(){
     // Check the status of the network bearer
     Serial.println("Checking the status of network bearer ...");
     modem.sendAT("+CNACT?"); // Send the AT command to query the network bearer status
-    String response;
     ret = modem.waitResponse(10000UL, response); // Wait for the response with a 10-second timeout
 
     bool alreadyActivated = false;
@@ -348,13 +349,14 @@ void checkNetworkBearer(){
 void showModemInfo(){
     Serial.println("T-SIM7080G Firmware Version: ");
     modem.sendAT("+CGMR");
-    String response;
-    if (modem.waitResponse(10000L, response) != 1){
+    if (modem.waitResponse(10000L) != 1)
+    {
         Serial.println("Get Firmware Version Failed!");
-    }else{
+    }
+    else
+    {
         Serial.println(response);
     }
-
     String ccid = modem.getSimCCID();
     Serial.print("CCID:");
     Serial.println(ccid);
@@ -472,9 +474,7 @@ void mqttConnect(){
         //modem.waitResponse(30000);
 
         modem.sendAT("+SMCONN");
-        String response;
-        modem.waitResponse(10000UL, response);
-        Serial.println(response);
+        ret = modem.waitResponse(10000UL, response);
 
         if (response.indexOf("ERROR") >= 0) // Check if the response contains "ERROR"
         {
@@ -518,36 +518,46 @@ void publishMsg(){
     char buffer[1024] = {0};
 
     payload.concat(clientID);
-
     payload.concat(",");
-    payload.concat(modem.getGSMDateTime(DATE_FULL));
 
-    payload.concat(",SQ,");
+    payload.concat(modem.getGSMDateTime(DATE_FULL));
+    payload.concat(",");
+
     int csq = modem.getSignalQuality();
     Serial.print("Signal quality:");
     Serial.println(csq);
     payload.concat(csq);
+    payload.concat(",");
 
-    payload.concat(",CPSI,");
-    modem.sendAT("+CPSI?");
-    String response;
-    modem.waitResponse(60000UL, response);
-    payload.concat(response);
+    int temp =  rand() % (randMax - randMin) + randMin;
+    payload.concat("temp,");
+    payload.concat(temp);
+    payload.concat("\r\n");
 
     // AT+SMPUB=<topic>,<content length>,<qos>,<retain><CR>message is entered Quit edit mode if payload.length equals to <content length>
     snprintf(buffer, 1024, "+SMPUB=\"t/%s/%s\",%d,1,1", username, clientID, payload.length());
     modem.sendAT(buffer);
-    if (modem.waitResponse(">") == 1) {
-        modem.stream.write(payload.c_str(), payload.length());
-        Serial.print("Try publish payload: ");
-        Serial.println(payload);
-
-        if (modem.waitResponse(3000)) {
-            Serial.println("Send Packet success!");
-        } else {
-            Serial.println("Send Packet failed!");
-        }
+    ret = modem.waitResponse(60000UL, response);
+    if (response.indexOf("ERROR") >= 0) // Check if the response contains "ERROR"
+    {
+        Serial.println("Send Packet failed!");
     }
+    else if (response.indexOf("OK") >= 0) // Check if the response contains "OK"
+    {
+        Serial.println("Send Packet success!");
+    }
+    else
+    {
+        Serial.println("No valid response, retrying connect ...");
+        delay(1000);
+    }
+}
+
+void sendCmd(String cmd){
+    modem.sendAT(cmd);
+    String response;
+    modem.waitResponse(60000UL, response);
+    Serial.println(response);
 }
 
 void loopModem(){
