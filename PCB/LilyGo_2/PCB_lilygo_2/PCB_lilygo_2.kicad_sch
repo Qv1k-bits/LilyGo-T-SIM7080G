@@ -1,5 +1,21 @@
 (kicad_sch (version 20230121) (generator eeschema)
+
+  (uuid 3a8b2881-9a13-43d3-bbaf-7fdc63885fda)
+
   (paper "A4")
-  (lib_symbols)
-  (symbol_instances)
+
+  (title_block
+    (title "WSPGO")
+    (date "2024-01-26")
+    (rev "0.0.1")
+    (company "WSP")
+  )
+
+  (lib_symbols
+  )
+
+
+  (sheet_instances
+    (path "/" (page "1"))
+  )
 )
