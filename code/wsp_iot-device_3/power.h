@@ -8,14 +8,9 @@
  */
 
 #pragma once
-
-
-
+#include <Arduino.h>
 
 bool setupPower();
 void loopPower();
 
-
-
-
-
+void battStatus(String &data);

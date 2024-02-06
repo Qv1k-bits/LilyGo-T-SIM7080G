@@ -90,7 +90,8 @@ bool setupPower(){
     PMU.clearIrqStatus();
 
     PMU.enableVbusVoltageMeasure();
-    PMU.enableBattVoltageMeasure();
+    Serial.println(PMU.enableBattDetection());
+    Serial.println(PMU.enableBattVoltageMeasure());
     PMU.enableSystemVoltageMeasure();
     PMU.disableTemperatureMeasure();
 
@@ -137,6 +138,15 @@ bool setupPower(){
         break;
     }
     return true;
+}
+
+void battStatus(String &data){
+    data.reserve(64);
+    int battVolt = PMU.getBattVoltage();
+    Serial.println(PMU.getBattVoltage());
+    int battPercent = PMU.getBatteryPercent();
+    Serial.println(PMU.getBatteryPercent());
+    data = ",Batt,%d,%d",battVolt,battPercent;
 }
 
 void loopPower(){

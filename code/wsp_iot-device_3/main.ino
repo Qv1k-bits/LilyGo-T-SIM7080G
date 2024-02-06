@@ -97,7 +97,9 @@ void setup(){
 }
 
 void loop(){
-    publishMsg();
+    String status;
+    battStatus(status);
+    publishMsg(status);
     delay(180000UL);
 }
 

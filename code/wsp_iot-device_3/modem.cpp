@@ -494,7 +494,7 @@ void mqttConnect(){
     }
 }
 
-void publishMsg(){
+void publishMsg(String status){
     testModem();
 
     // Enable RF
@@ -528,6 +528,8 @@ void publishMsg(){
     Serial.println(csq);
     payload.concat(csq);
 
+    payload.concat(status);
+
     payload.concat(",CPSI,");
     modem.sendAT("+CPSI?");
     String response;
@@ -547,6 +549,14 @@ void publishMsg(){
         } else {
             Serial.println("Send Packet failed!");
         }
+    }
+
+    // Disconnect MQTT connection
+    delay(3000);
+    modem.sendAT("+SMDISC");
+    if (modem.waitResponse() != 1) {
+        Serial.println("Couden't disconnect");
+        //return;
     }
 }
 
